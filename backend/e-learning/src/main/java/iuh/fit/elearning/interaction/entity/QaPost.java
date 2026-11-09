@@ -1,5 +1,6 @@
 package iuh.fit.elearning.interaction.entity;
 
+import org.hibernate.annotations.DynamicUpdate;
 import iuh.fit.elearning.common.entity.AuditableEntity;
 import iuh.fit.elearning.course.entity.Course;
 import iuh.fit.elearning.user.entity.User;
@@ -15,6 +16,7 @@ import java.time.Instant;
  * Câu hỏi trong khu vực Q&A của khóa học (CauHoi).
  */
 @Entity
+@DynamicUpdate
 @Table(name = "qa_posts")
 @Getter
 @Setter

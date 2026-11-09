@@ -1,7 +1,6 @@
 package iuh.fit.elearning.catalog.repository;
 
 import iuh.fit.elearning.catalog.entity.Topic;
-
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -15,4 +14,12 @@ public interface TopicRepository extends JpaRepository<Topic, UUID> {
     List<Topic> findByHotTrueOrderBySearchCountDesc();
 
     Optional<Topic> findBySlug(String slug);
+
+    Optional<Topic> findByNameIgnoreCase(String name);
+
+    boolean existsByNameIgnoreCase(String name);
+
+    boolean existsBySlug(String slug);
+
+    List<Topic> findAllByOrderByNameAsc();
 }

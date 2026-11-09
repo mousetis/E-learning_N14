@@ -1,5 +1,6 @@
 package iuh.fit.elearning.user.entity;
 
+import org.hibernate.annotations.DynamicUpdate;
 import iuh.fit.elearning.common.entity.AuditableEntity;
 
 import jakarta.persistence.*;
@@ -13,6 +14,7 @@ import java.math.BigDecimal;
  * Hồ sơ giảng viên (HoSoGiangVien).
  */
 @Entity
+@DynamicUpdate
 @Table(name = "instructor_profiles")
 @Getter
 @Setter

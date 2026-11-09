@@ -1,7 +1,6 @@
 package iuh.fit.elearning.catalog.repository;
 
 import iuh.fit.elearning.catalog.entity.Category;
-
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -13,6 +12,8 @@ import java.util.UUID;
 public interface CategoryRepository extends JpaRepository<Category, UUID> {
 
     List<Category> findByActiveTrueOrderBySortOrderAsc();
+
+    List<Category> findAllByOrderBySortOrderAsc();
 
     Optional<Category> findBySlug(String slug);
 

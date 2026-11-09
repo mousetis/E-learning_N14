@@ -1,5 +1,6 @@
 package iuh.fit.elearning.course.entity;
 
+import org.hibernate.annotations.DynamicUpdate;
 import iuh.fit.elearning.catalog.entity.Category;
 import iuh.fit.elearning.catalog.entity.Topic;
 import iuh.fit.elearning.common.entity.AuditableEntity;
@@ -23,6 +24,7 @@ import java.util.Set;
  * Khóa học (KhoaHoc).
  */
 @Entity
+@DynamicUpdate
 @Table(name = "courses")
 @Getter
 @Setter
