@@ -19,7 +19,12 @@ export function navigate<RouteName extends keyof RootStackParamList>(
 }
 
 export function goBack() {
-  if (navigationRef.isReady() && navigationRef.canGoBack()) {
-    navigationRef.goBack();
+  if (navigationRef.isReady()) {
+    if (navigationRef.canGoBack()) {
+      navigationRef.goBack();
+    } else {
+      // @ts-ignore
+      navigationRef.navigate('MainTabs', { screen: 'Home' });
+    }
   }
 }

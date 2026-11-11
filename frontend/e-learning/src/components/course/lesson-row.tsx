@@ -2,14 +2,8 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Radius, Spacing } from '@/constants/theme';
 import { useAppTheme } from '@/hooks/use-app-theme';
-import type { Lesson, LessonStatus } from '@/types/course';
-
-const STATUS_LABEL: Record<LessonStatus, string> = {
-  completed: 'Hoàn thành',
-  'in-progress': 'Đang học',
-  locked: 'Đã khóa',
-  available: 'Học ngay',
-};
+import { useAppStore } from '@/store';
+import type { Lesson } from '@/types/course';
 
 type Props = {
   lesson: Lesson;
@@ -18,26 +12,46 @@ type Props = {
 
 export function LessonRow({ lesson, onPress }: Props) {
   const theme = useAppTheme();
+  const { user } = useAppStore();
   const isLocked = lesson.status === 'locked';
   const isActive = lesson.status === 'in-progress';
+
+  // Xác định nhãn trạng thái bài học
+  let statusText = '';
+  if (isLocked) {
+    statusText = '🔒 Đã khóa';
+  } else if (lesson.isPreview) {
+    // Khóa học chưa mua: bài học xem thử hiển thị "Học thử miễn phí"
+    statusText = 'Học thử miễn phí';
+  } else if (lesson.status === 'completed') {
+    statusText = 'Hoàn thành';
+  } else if (lesson.status === 'in-progress') {
+    statusText = 'Đang học';
+  }
 
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`Bài ${lesson.index}: ${lesson.title}`}
-      accessibilityState={{ disabled: isLocked }}
-      disabled={isLocked}
       onPress={onPress}
-      style={[
+      style={({ pressed }) => [
         styles.row,
         {
           backgroundColor: theme.backgroundElement,
           borderColor: isActive ? theme.primary : theme.border,
+          opacity: pressed ? 0.7 : 1,
         },
       ]}
     >
-      <View style={[styles.badge, { backgroundColor: theme.primarySoft }]}>
-        <Text style={[styles.badgeText, { color: theme.primary }]}>{lesson.index}</Text>
+      <View
+        style={[
+          styles.badge,
+          { backgroundColor: isLocked ? theme.chipBackground : theme.primarySoft },
+        ]}
+      >
+        <Text style={[styles.badgeText, { color: isLocked ? theme.muted : theme.primary }]}>
+          {lesson.index}
+        </Text>
       </View>
       <View style={styles.body}>
         <Text
@@ -48,9 +62,19 @@ export function LessonRow({ lesson, onPress }: Props) {
         </Text>
         <Text style={[styles.duration, { color: theme.textSecondary }]}>{lesson.duration}</Text>
       </View>
-      <Text style={[styles.status, { color: isLocked ? theme.muted : theme.primary }]}>
-        {STATUS_LABEL[lesson.status]}
-      </Text>
+      {statusText ? (
+        <Text
+          style={[
+            styles.status,
+            {
+              color: isLocked ? theme.muted : theme.primary,
+              fontWeight: isLocked ? '500' : '700',
+            },
+          ]}
+        >
+          {statusText}
+        </Text>
+      ) : null}
     </Pressable>
   );
 }

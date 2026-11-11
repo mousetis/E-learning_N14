@@ -8,6 +8,8 @@ export type Lesson = {
   title: string;
   duration: string;
   status: LessonStatus;
+  videoUrl?: string;
+  isPreview?: boolean;
 };
 
 export type Chapter = {
@@ -84,6 +86,8 @@ export type CourseDetail = {
   related: RelatedCourse[];
   stats: { likes: number; shares: number };
   coverImage?: string;
+  owned?: boolean;
+  priceNumber?: number;
 };
 
 export type InstructorProfile = {

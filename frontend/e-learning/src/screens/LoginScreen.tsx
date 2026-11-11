@@ -1,6 +1,6 @@
 import { router } from '@/navigation/routerHook';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { AppButton } from '@/components/ui/app-button';
@@ -17,19 +17,23 @@ import {
   authValidationMessages,
   loginCopy,
   passwordVisibilityLabels,
-} from '@/data/auth';
+} from '@/constants/auth';
 import { useTheme } from '@/hooks/use-theme';
 import { isValidEmail } from '@/utils/validation';
+import { authService } from '@/services/authService';
+import { useAppStore } from '@/store';
 
 export default function LoginScreen() {
   const theme = useTheme();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const { setUser, refreshUserData } = useAppStore();
+  const [email, setEmail] = useState('student@elearning.local');
+  const [password, setPassword] = useState('123456');
   const [showPassword, setShowPassword] = useState(false);
   const [emailError, setEmailError] = useState<string | undefined>(undefined);
   const [passwordError, setPasswordError] = useState<string | undefined>(undefined);
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const nextEmailError =
       email.trim().length === 0
         ? authValidationMessages.emailRequired
@@ -46,15 +50,34 @@ export default function LoginScreen() {
       return;
     }
 
-    router.replace('/');
+    try {
+      setLoading(true);
+      const loggedInUser = await authService.login(email.trim(), password);
+      setUser(loggedInUser);
+      await refreshUserData();
+      router.replace('/');
+    } catch (err: any) {
+      const msg = err?.message || 'Đăng nhập không thành công, vui lòng thử lại';
+      setPasswordError(msg);
+      Alert.alert('Đăng nhập thất bại', msg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleForgotPassword = () => {
-    // Màn hình khôi phục mật khẩu chưa nằm trong phạm vi thiết kế này.
+    router.push('/forgot-password');
+  };
+
+  const handleDemoStudent = () => {
+    setEmail('student@elearning.local');
+    setPassword('123456');
   };
 
   const handleGoogleSignIn = () => {
-    // Luồng đăng nhập Google sẽ được nối khi có API xác thực.
+    // Quick fill demo account for convenience
+    handleDemoStudent();
+    handleSubmit();
   };
 
   return (
@@ -119,13 +142,17 @@ export default function LoginScreen() {
           </Text>
         </Pressable>
 
-        <AppButton label={loginCopy.submit} onPress={handleSubmit} />
+        <AppButton
+          label={loading ? 'Đang xử lý...' : loginCopy.submit}
+          onPress={handleSubmit}
+          disabled={loading}
+        />
 
         <View style={styles.divider}>
           <OrDivider label={loginCopy.divider} />
         </View>
 
-        <SocialButton label={loginCopy.google} onPress={handleGoogleSignIn} />
+        <SocialButton label="Đăng nhập nhanh với tài khoản mẫu" onPress={handleGoogleSignIn} />
       </SurfaceCard>
 
       <FooterLink

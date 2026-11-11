@@ -35,7 +35,7 @@ export function AppNavigator() {
   return (
     <NavigationContainer ref={navigationRef}>
       <Stack.Navigator
-        initialRouteName="MainTabs"
+        initialRouteName="Welcome"
         screenOptions={{
           headerShown: false,
           contentStyle: { backgroundColor: theme.background },

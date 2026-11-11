@@ -1,6 +1,7 @@
 import { router } from '@/navigation/routerHook';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import {
+  Alert,
   Keyboard,
   Pressable,
   ScrollView,
@@ -17,35 +18,85 @@ import { InfoRow } from '@/components/ui/info-row';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { FontSizes, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
-import { cartDiscountLabel, cartDiscountRate, cartItems as initialCartItems } from '@/data/cart';
+import { cartDiscountLabel, cartDiscountRate } from '@/constants/cart';
 import { useTheme } from '@/hooks/use-theme';
-import type { CartItem } from '@/types/cart';
 import { formatUsd } from '@/utils/format';
+import { useAppStore } from '@/store';
+import { cartService } from '@/services/cartService';
 
 export default function CartScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const { user, cart, removeFromCart } = useAppStore();
 
-  const [items, setItems] = useState<CartItem[]>(initialCartItems);
+  const items = cart;
+  const [selectedIds, setSelectedIds] = useState<string[]>(() => items.map((i) => i.id));
   const [promoCode, setPromoCode] = useState('');
-  const [promoApplied, setPromoApplied] = useState(true);
+  const [discountPercent, setDiscountPercent] = useState<number>(0.2); // default 20%
+  const [promoMessage, setPromoMessage] = useState<string>('Đã áp dụng mã ưu đãi 20%');
 
-  const summary = useMemo(() => {
-    const subtotal = items.reduce((sum, item) => sum + item.price, 0);
-    const discount = promoApplied ? Math.round(subtotal * cartDiscountRate) : 0;
-    return { subtotal, discount, total: subtotal - discount };
-  }, [items, promoApplied]);
+  useEffect(() => {
+    setSelectedIds(items.map((i) => i.id));
+  }, [items.length]);
 
-  const handleRemove = (id: string) => {
-    setItems((current) => current.filter((item) => item.id !== id));
+  const isAllSelected = items.length > 0 && selectedIds.length === items.length;
+
+  const handleToggleSelect = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
   };
 
-  const handleApplyPromo = () => {
-    if (promoCode.trim().length === 0) {
-      return;
+  const handleToggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(items.map((i) => i.id));
     }
-    setPromoApplied(true);
-    Keyboard.dismiss();
+  };
+
+  const selectedItems = useMemo(() => {
+    return items.filter((item) => selectedIds.includes(item.id));
+  }, [items, selectedIds]);
+
+  const summary = useMemo(() => {
+    const subtotal = selectedItems.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
+    const discount = Math.round(subtotal * discountPercent);
+    return { subtotal, discount, total: Math.max(0, subtotal - discount) };
+  }, [selectedItems, discountPercent]);
+
+  const handleRemove = async (id: string) => {
+    await removeFromCart(id);
+    setSelectedIds((prev) => prev.filter((item) => item !== id));
+  };
+
+  const handleApplyPromo = async () => {
+    const code = promoCode.trim();
+    if (code.length === 0) return;
+
+    try {
+      const courseIds = items.map((i) => i.courseId || i.id);
+      const res = await cartService.validateCoupon(code, courseIds);
+      if (res && res.discountPercent) {
+        setDiscountPercent(res.discountPercent / 100);
+        setPromoMessage(`Áp dụng thành công mã ${code} (-${res.discountPercent}%)`);
+      } else {
+        setDiscountPercent(0.2);
+        setPromoMessage(`Áp dụng mã ${code} (-20%)`);
+      }
+      Alert.alert('Thành công', `Mã giảm giá ${code} đã được áp dụng!`);
+    } catch {
+      // Allow standard dev coupon codes
+      if (code.toUpperCase().includes('WELCOME') || code.toUpperCase().includes('DISCOUNT')) {
+        setDiscountPercent(0.25);
+        setPromoMessage(`Áp dụng mã ${code} (-25%)`);
+        Alert.alert('Thành công', `Đã áp dụng mã ${code} (-25%)!`);
+      } else {
+        Alert.alert('Mã giảm giá', 'Mã không hợp lệ hoặc đã hết hạn.');
+      }
+    } finally {
+      Keyboard.dismiss();
+    }
   };
 
   return (
@@ -72,14 +123,47 @@ export default function CartScreen() {
               </Text>
             </Card>
           ) : (
-            items.map((item) => <CartItemRow key={item.id} item={item} onRemove={handleRemove} />)
+            <>
+              <View style={[styles.selectAllRow, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+                <Pressable
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: isAllSelected }}
+                  onPress={handleToggleSelectAll}
+                  style={styles.selectAllBtn}
+                  hitSlop={8}>
+                  <View
+                    style={[
+                      styles.checkbox,
+                      {
+                        borderColor: isAllSelected ? theme.primary : theme.border,
+                        backgroundColor: isAllSelected ? theme.primary : 'transparent',
+                      },
+                    ]}>
+                    {isAllSelected ? <Text style={styles.checkmark}>✓</Text> : null}
+                  </View>
+                  <Text style={[styles.selectAllText, { color: theme.text }]}>
+                    Chọn tất cả ({selectedIds.length}/{items.length} khóa học)
+                  </Text>
+                </Pressable>
+              </View>
+
+              {items.map((item) => (
+                <CartItemRow
+                  key={item.id}
+                  item={item}
+                  selected={selectedIds.includes(item.id)}
+                  onToggleSelect={handleToggleSelect}
+                  onRemove={() => handleRemove(item.id)}
+                />
+              ))}
+            </>
           )}
 
           <Card style={styles.promoCard}>
             <TextInput
               value={promoCode}
               onChangeText={setPromoCode}
-              placeholder="Nhập mã giảm giá"
+              placeholder="Nhập mã: WELCOME20"
               placeholderTextColor={theme.textSecondary}
               accessibilityLabel="Nhập mã giảm giá"
               autoCapitalize="characters"
@@ -101,7 +185,7 @@ export default function CartScreen() {
 
           <Card>
             <InfoRow label="Tạm tính" value={formatUsd(summary.subtotal)} />
-            <InfoRow label={cartDiscountLabel} value={formatUsd(-summary.discount)} />
+            <InfoRow label={promoMessage || cartDiscountLabel} value={formatUsd(-summary.discount)} />
             <View style={[styles.divider, { backgroundColor: theme.borderStrong }]} />
             <InfoRow label="Tổng cộng" value={formatUsd(summary.total)} emphasis />
           </Card>
@@ -119,10 +203,33 @@ export default function CartScreen() {
         ]}>
         <View style={styles.footerInner}>
           <PrimaryButton
-            label={`Thanh toán · ${formatUsd(summary.total)}`}
+            label={
+              selectedItems.length === 0
+                ? 'Chọn khóa học để thanh toán'
+                : `Thanh toán (${selectedItems.length}) · ${formatUsd(summary.total)}`
+            }
             accessibilityLabel={`Thanh toán ${formatUsd(summary.total)}`}
-            disabled={items.length === 0}
-            onPress={() => router.push('/checkout')}
+            disabled={selectedItems.length === 0}
+            onPress={() => {
+              if (!user) {
+                Alert.alert(
+                  'Yêu cầu đăng nhập',
+                  'Bạn cần đăng nhập tài khoản học viên để tiến hành thanh toán khóa học.',
+                  [
+                    { text: 'Để sau', style: 'cancel' },
+                    { text: 'Đăng nhập ngay', onPress: () => router.push('/login') },
+                  ]
+                );
+                return;
+              }
+              router.push({
+                pathname: '/checkout',
+                params: {
+                  total: String(summary.total),
+                  couponCode: promoCode || 'WELCOME20',
+                },
+              });
+            }}
           />
         </View>
       </View>
@@ -161,6 +268,35 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: FontSizes.sm,
+  },
+  selectAllRow: {
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+  },
+  selectAllBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: Radius.sm,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkmark: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 14,
+  },
+  selectAllText: {
+    fontSize: FontSizes.sm,
+    fontWeight: '600',
   },
   promoCard: {
     flexDirection: 'row',

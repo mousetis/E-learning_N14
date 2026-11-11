@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -7,7 +7,8 @@ import { NotificationRow } from '@/components/notification-row';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { useTheme } from '@/hooks/use-theme';
 import { BottomTabInset, FontSizes, MaxContentWidth, Spacing } from '@/constants/theme';
-import { notifications } from '@/data/notifications';
+import { notificationService } from '@/services/notificationService';
+import type { NotificationItem } from '@/types/notification';
 
 type Filter = 'all' | 'unread';
 
@@ -19,10 +20,34 @@ const filterLabels: { key: Filter; label: string }[] = [
 export default function NotificationsScreen() {
   const theme = useTheme();
   const [filter, setFilter] = useState<Filter>('all');
+  const [notifList, setNotifList] = useState<NotificationItem[]>([]);
+
+  const loadNotifications = async () => {
+    try {
+      const items = await notificationService.getNotifications();
+      if (items && items.length > 0) {
+        setNotifList(items);
+      }
+    } catch (err) {
+      console.warn('Load notifications error:', err);
+    }
+  };
+
+  useEffect(() => {
+    loadNotifications();
+  }, []);
+
+  const handleMarkRead = async (item: NotificationItem) => {
+    if (!item.unread) return;
+    setNotifList((prev) =>
+      prev.map((n) => (n.id === item.id ? { ...n, unread: false } : n)),
+    );
+    await notificationService.markAsRead(item.id);
+  };
 
   const items = useMemo(
-    () => (filter === 'all' ? notifications : notifications.filter((n) => n.unread)),
-    [filter],
+    () => (filter === 'all' ? notifList : notifList.filter((n) => n.unread)),
+    [filter, notifList],
   );
 
   return (
@@ -67,7 +92,9 @@ export default function NotificationsScreen() {
             </View>
           </View>
         }
-        renderItem={({ item }) => <NotificationRow item={item} />}
+        renderItem={({ item }) => (
+          <NotificationRow item={item} onPress={() => handleMarkRead(item)} />
+        )}
       />
     </SafeAreaView>
   );

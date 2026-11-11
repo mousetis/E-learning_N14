@@ -10,8 +10,14 @@ type CourseCardProps = {
   onPress?: () => void;
 };
 
+function formatVnd(amount?: number | null): string {
+  if (amount == null || amount === 0) return 'Miễn phí';
+  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+}
+
 export function CourseCard({ course, onPress }: CourseCardProps) {
   const theme = useTheme();
+  const imageUri = course.image || (course as any).coverUri;
 
   return (
     <Pressable
@@ -23,10 +29,10 @@ export function CourseCard({ course, onPress }: CourseCardProps) {
         { backgroundColor: theme.card, opacity: pressed ? 0.9 : 1 },
       ]}>
       <View style={[styles.thumb, { backgroundColor: course.tint }]}>
-        {course.image ? (
+        {imageUri ? (
           <>
             <Image
-              source={{ uri: course.image }}
+              source={{ uri: imageUri }}
               style={styles.thumbImage}
               contentFit="cover"
               cachePolicy="memory-disk"
@@ -48,7 +54,7 @@ export function CourseCard({ course, onPress }: CourseCardProps) {
         {course.author}
       </Text>
       <Text style={[styles.meta, { color: theme.primary }]}>
-        {`$${course.price} · ★ ${course.rating} · ${course.lessons} bài`}
+        {`${formatVnd(course.price)} · ★ ${course.rating} · ${course.lessons} bài`}
       </Text>
     </Pressable>
   );

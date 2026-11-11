@@ -1,7 +1,12 @@
-export function formatUsd(amount: number): string {
+export function formatVnd(amount?: number | null): string {
+  if (amount == null || amount === 0) return '0 đ';
   const rounded = Math.round(amount);
   const sign = rounded < 0 ? '-' : '';
-  return `${sign}$${Math.abs(rounded)}`;
+  return `${sign}${new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Math.abs(rounded))}`;
+}
+
+export function formatUsd(amount: number): string {
+  return formatVnd(amount);
 }
 
 export function digitsOnly(value: string, maxLength: number): string {

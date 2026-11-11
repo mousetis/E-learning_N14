@@ -20,6 +20,7 @@ export type FormFieldProps = {
   textContentType?: TextInputProps['textContentType'];
   returnKeyType?: TextInputProps['returnKeyType'];
   onSubmitEditing?: TextInputProps['onSubmitEditing'];
+  maxLength?: number;
 };
 
 export function FormField({
@@ -38,6 +39,7 @@ export function FormField({
   textContentType,
   returnKeyType,
   onSubmitEditing,
+  maxLength,
 }: FormFieldProps) {
   const theme = useTheme();
   const [focused, setFocused] = useState(false);
@@ -68,6 +70,7 @@ export function FormField({
           textContentType={textContentType}
           returnKeyType={returnKeyType}
           onSubmitEditing={onSubmitEditing}
+          maxLength={maxLength}
           selectionColor={theme.primary}
           accessibilityLabel={label}
         />

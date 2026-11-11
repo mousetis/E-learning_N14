@@ -1,4 +1,4 @@
-import type { SettingsGroup } from '@/types/settings';
+import type { PaymentMethod, SettingsGroup } from '@/types/settings';
 
 export const accountSettings: SettingsGroup = {
   id: 'account',
@@ -19,3 +19,26 @@ export const supportSettings: SettingsGroup = {
 };
 
 export const defaultLanguageLabel = 'Tiếng Việt';
+
+export const paymentMethods: PaymentMethod[] = [
+  {
+    id: 'card',
+    label: 'Thẻ ngân hàng',
+    icon: '💳',
+    iconBackground: '#b8f1e0',
+  },
+  {
+    id: 'momo',
+    label: 'Ví MoMo',
+    icon: '📱',
+    iconBackground: '#c7c2fe',
+  },
+  {
+    id: 'zalopay',
+    label: 'ZaloPay',
+    icon: '💰',
+    iconBackground: '#c7c2fe',
+  },
+];
+
+export const defaultPaymentMethodId = 'card';

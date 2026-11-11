@@ -1,28 +1,15 @@
-export interface Category {
-  id: string;
-  label?: string;
-  title?: string;
-  color?: string;
-  tint?: string;
-  icon?: string;
-  glyph?: string;
-  emoji?: string;
-  image?: string;
-}
-
-export interface Instructor {
-  id: string;
-  name: string;
-  avatarColor: string;
-  avatarUri?: string;
-  rating: number | string;
-  studentCount?: number;
-}
+export * from './user';
+export * from './cart';
+export * from './notification';
+export * from './category';
+export * from './instructor';
 
 export interface Lesson {
   id: string;
   title: string;
-  durationSeconds: number;
+  durationSeconds?: number;
+  duration?: string;
+  index?: string;
   completed?: boolean;
 }
 
@@ -48,44 +35,6 @@ export interface Course {
   isBookmarked?: boolean;
   progress?: number;
   badge?: { label: string; tint: string };
-}
-
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  avatarUri?: string;
-  avatarColor?: string;
-  avatar?: string;
-  role?: string;
-  token?: string;
-}
-
-export interface Review {
-  id: string;
-  userId: string;
-  userName: string;
-  avatarColor?: string;
-  avatarUri?: string;
-  courseId: string;
-  rating: number;
-  comment: string;
-  createdAt: string;
-}
-
-export interface NotificationItem {
-  id: string;
-  title: string;
-  body: string;
-  createdAt: string;
-  read: boolean;
-  type: 'course' | 'promotion' | 'system';
-}
-
-export interface CartItem {
-  id: string;
-  courseId: string;
-  quantity: number;
 }
 
 export interface PaymentMethod {

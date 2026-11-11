@@ -1,7 +1,7 @@
 export const welcomeCopy = {
   title: 'Học mọi lúc,\nmọi nơi',
   subtitle: 'Hàng trăm khóa học từ giảng viên hàng đầu, học theo tốc độ của riêng bạn.',
-  primaryCta: 'Bắt đầu',
+  primaryCta: 'Bắt đầu ngay',
   footerQuestion: 'Đã có tài khoản?',
   footerAction: 'Đăng nhập',
 };
@@ -45,10 +45,10 @@ export const passwordVisibilityLabels = {
 };
 
 export const authPlaceholders = {
-  name: 'Martha Rosie',
-  email: 'rosie@email.com',
+  name: 'Nguyễn Văn Học',
+  email: 'student@elearning.local',
   password: '••••••••',
-  passwordHint: 'Tối thiểu 8 ký tự',
+  passwordHint: 'Tối thiểu 6 ký tự',
 };
 
 export const authValidationMessages = {
@@ -56,6 +56,6 @@ export const authValidationMessages = {
   emailRequired: 'Vui lòng nhập email.',
   emailInvalid: 'Email không hợp lệ.',
   passwordRequired: 'Vui lòng nhập mật khẩu.',
-  passwordTooShort: 'Mật khẩu cần tối thiểu 8 ký tự.',
+  passwordTooShort: 'Mật khẩu cần tối thiểu 6 ký tự.',
   termsRequired: 'Bạn cần đồng ý với Điều khoản và Chính sách.',
 };

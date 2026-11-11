@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from '@/navigation/routerHook';
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -9,27 +9,71 @@ import { FilterButton } from '@/components/ui/filter-button';
 import { SearchInput } from '@/components/ui/search-input';
 import { BottomNavBar } from '@/components/bottom-bar';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
-import { searchResults, totalResults } from '@/data/search';
 import { useTheme } from '@/hooks/use-theme';
+import { courseService } from '@/services/courseService';
+import type { Course } from '@/types/course';
+
+const PASTEL_COLORS = ['#c9bcff', '#ffd6a3', '#b2eedf', '#ffbfd2', '#ffe8a3', '#d0e1fd'];
 
 export default function SearchResultsScreen() {
   const theme = useTheme();
   const router = useRouter();
-  const params = useLocalSearchParams<{ q?: string }>();
-  const initialQuery = typeof params.q === 'string' && params.q.length > 0 ? params.q : 'Design';
+  const params = useLocalSearchParams<{
+    q?: string;
+    categoryId?: string;
+    title?: string;
+    minPrice?: string;
+    maxPrice?: string;
+    sort?: string;
+    rating?: string;
+  }>();
+  const initialQuery = typeof params.q === 'string' ? params.q : '';
   const [query, setQuery] = useState(initialQuery);
+  const [results, setResults] = useState<Course[]>([]);
+  const [totalCount, setTotalCount] = useState<number>(0);
+  const [loading, setLoading] = useState(false);
 
-  const results = useMemo(() => {
-    const term = query.trim().toLowerCase();
-    if (term.length === 0) {
-      return searchResults;
+  const performSearch = async (keyword?: string) => {
+    try {
+      setLoading(true);
+      const res = await courseService.searchCourses({
+        keyword: keyword && keyword.trim().length > 0 ? keyword.trim() : undefined,
+        categoryId: params.categoryId || undefined,
+        minPrice: params.minPrice ? Number(params.minPrice) : undefined,
+        maxPrice: params.maxPrice ? Number(params.maxPrice) : undefined,
+        sort: params.sort || undefined,
+      });
+      const items = res?.items || res;
+      if (Array.isArray(items) && items.length > 0) {
+        const mapped: Course[] = items.map((c: any, idx: number) => ({
+          id: c.id,
+          title: c.title,
+          author: c.instructor?.fullName || 'Giảng viên',
+          price: Number(c.salePrice ?? c.originalPrice ?? 499000),
+          rating: Number(c.avgRating ?? 4.8),
+          lessons: c.totalLessons || 12,
+          tint: PASTEL_COLORS[idx % PASTEL_COLORS.length],
+          coverUri: c.thumbnailUrl || undefined,
+          image: c.thumbnailUrl || undefined,
+        }));
+        setResults(mapped);
+        setTotalCount(res.totalElements ?? mapped.length);
+        return;
+      }
+      setResults([]);
+      setTotalCount(0);
+    } catch {
+      setResults([]);
+      setTotalCount(0);
+    } finally {
+      setLoading(false);
     }
-    const matches = searchResults.filter(
-      (course) =>
-        course.title.toLowerCase().includes(term) || course.author.toLowerCase().includes(term),
-    );
-    return matches.length > 0 ? matches : searchResults;
-  }, [query]);
+  };
+
+  useEffect(() => {
+    setQuery(initialQuery);
+    performSearch(initialQuery);
+  }, [params.q, params.categoryId, params.minPrice, params.maxPrice, params.sort]);
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: theme.background }]} edges={['top']}>
@@ -50,12 +94,25 @@ export default function SearchResultsScreen() {
               <SearchInput
                 value={query}
                 onChangeText={setQuery}
-                onSubmitEditing={() => setQuery(query.trim())}
+                onSubmitEditing={() => performSearch(query)}
               />
-              <FilterButton onPress={() => router.push('/search/filter')} />
+              <FilterButton
+                onPress={() =>
+                  router.push({
+                    pathname: '/search/filter',
+                    params: {
+                      q: query,
+                      categoryId: params.categoryId,
+                      sort: params.sort,
+                      minPrice: params.minPrice,
+                      maxPrice: params.maxPrice,
+                    },
+                  })
+                }
+              />
             </View>
             <ThemedText type="smallBold" style={styles.count}>
-              {`${totalResults} kết quả`}
+              {loading ? 'Đang tìm kiếm...' : `${totalCount} kết quả`}
             </ThemedText>
           </View>
         }

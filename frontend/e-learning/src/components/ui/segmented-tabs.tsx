@@ -1,4 +1,4 @@
-import { useRouter, type Href } from 'expo-router';
+import { useRouter } from '@/navigation/routerHook';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Spacing } from '@/constants/theme';
@@ -7,7 +7,7 @@ import { useAppTheme } from '@/hooks/use-app-theme';
 export type SegmentItem = {
   key: string;
   label: string;
-  href?: Href;
+  href?: any;
 };
 
 type Props = {
@@ -32,11 +32,13 @@ export function SegmentedTabs({ items, activeKey, onSelect }: Props) {
             accessibilityLabel={item.label}
             accessibilityState={{ selected: active }}
             onPress={() => {
-              if (item.href) {
-                router.push(item.href);
+              if (onSelect) {
+                onSelect(item.key);
                 return;
               }
-              onSelect?.(item.key);
+              if (item.href) {
+                router.push(item.href);
+              }
             }}
             style={styles.tab}
           >

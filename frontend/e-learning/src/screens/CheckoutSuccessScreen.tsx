@@ -6,7 +6,6 @@ import { Card } from '@/components/ui/card';
 import { InfoRow } from '@/components/ui/info-row';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { FontSizes, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
-import { cartItems, cartOrderId } from '@/data/cart';
 import { useTheme } from '@/hooks/use-theme';
 import { formatUsd } from '@/utils/format';
 
@@ -25,7 +24,7 @@ export default function CheckoutSuccessScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ orderId?: string; method?: string; total?: string }>();
 
-  const orderId = readParam(params.orderId, cartOrderId);
+  const orderId = readParam(params.orderId, '#ELN-20268');
   const methodLabel = readParam(params.method, DEFAULT_METHOD_LABEL);
   const parsedTotal = Number(readParam(params.total, String(DEFAULT_TOTAL)));
   const total = Number.isFinite(parsedTotal) ? parsedTotal : DEFAULT_TOTAL;
@@ -50,7 +49,7 @@ export default function CheckoutSuccessScreen() {
 
         <Text style={[styles.title, { color: theme.text }]}>Thanh toán thành công</Text>
         <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-          {`Bạn đã đăng ký ${cartItems.length} khóa học. Bắt đầu học ngay thôi!`}
+          Chúc mừng bạn đã thanh toán và ghi danh khóa học thành công. Bắt đầu học ngay thôi!
         </Text>
 
         <Card style={styles.details}>

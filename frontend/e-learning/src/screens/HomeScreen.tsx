@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from '@/navigation/routerHook';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -14,16 +14,49 @@ import { BottomNavBar } from '@/components/bottom-bar';
 import { useTheme } from '@/hooks/use-theme';
 import { BottomTabInset, FontSizes, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 
-import { categories } from '@/data/categories';
-import { popularCourses } from '@/data/popular-courses';
-import { forYouCourses } from '@/data/for-you';
-import { inspirationCourses } from '@/data/inspiration';
-import { instructors } from '@/data/instructors';
+import { courseService } from '@/services/courseService';
+import { useAppStore } from '@/store';
+import type { Category } from '@/types/category';
+import type { PopularCourse, FeaturedCourse } from '@/types/course';
+import type { Instructor } from '@/types/instructor';
 
 export default function HomeScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const { user, unreadCount, cart } = useAppStore();
   const [bannerPressed, setBannerPressed] = useState(false);
+
+  const [categoriesList, setCategoriesList] = useState<Category[]>([]);
+  const [popularList, setPopularList] = useState<PopularCourse[]>([]);
+  const [forYouList, setForYouList] = useState<FeaturedCourse[]>([]);
+  const [instructorsList, setInstructorsList] = useState<Instructor[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const [cats, pop, fy, ins] = await Promise.all([
+          courseService.getCategories(),
+          courseService.getPopularCourses(),
+          courseService.getForYouCourses(),
+          courseService.getInstructors(),
+        ]);
+        if (mounted) {
+          if (cats && cats.length > 0) setCategoriesList(cats);
+          if (pop && pop.length > 0) setPopularList(pop);
+          if (fy && fy.length > 0) setForYouList(fy);
+          if (ins && ins.length > 0) setInstructorsList(ins);
+        }
+      } catch (err) {
+        console.warn('HomeScreen data loading error:', err);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const greetingName = user?.name ? user.name.split(' ').pop() : 'bạn';
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.chipBackground }]} edges={['top']}>
@@ -35,7 +68,9 @@ export default function HomeScreen() {
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerText}>
-            <ThemedText style={[styles.greeting, { color: theme.text }]}>Xin chào, Rosie!</ThemedText>
+            <ThemedText style={[styles.greeting, { color: theme.text }]}>
+              Xin chào, {greetingName}!
+            </ThemedText>
             <ThemedText style={[styles.subtitle, { color: theme.textSecondary }]}>
               Hôm nay bạn muốn học gì?
             </ThemedText>
@@ -48,6 +83,11 @@ export default function HomeScreen() {
               style={[styles.iconBtn, { backgroundColor: theme.surface }]}
             >
               <Icon sf="cart.fill" emoji="🛒" size={20} color={theme.primary} />
+              {cart.length > 0 ? (
+                <View style={[styles.cartBadge, { backgroundColor: theme.primary }]}>
+                  <Text style={styles.badgeText}>{cart.length}</Text>
+                </View>
+              ) : null}
             </Pressable>
             <Pressable
               accessibilityRole="button"
@@ -56,7 +96,9 @@ export default function HomeScreen() {
               style={[styles.iconBtn, { backgroundColor: theme.surface }]}
             >
               <Icon sf="bell.fill" emoji="🔔" size={20} color={theme.primary} />
-              <View style={[styles.notificationBadge, { backgroundColor: theme.danger }]} />
+              {unreadCount > 0 ? (
+                <View style={[styles.notificationBadge, { backgroundColor: theme.danger }]} />
+              ) : null}
             </Pressable>
           </View>
         </View>
@@ -79,7 +121,7 @@ export default function HomeScreen() {
 
         {/* Banner */}
         <Pressable
-          onPress={() => router.push('/course/ux-foundation')}
+          onPress={() => router.push('/course/30000000-0000-0000-0000-000000000001')}
           accessibilityRole="button"
           accessibilityLabel="Khóa học Quản lý dự án giảm 20%"
           style={[styles.banner, { backgroundColor: theme.banner }]}
@@ -100,18 +142,23 @@ export default function HomeScreen() {
         {/* Categories */}
         <SectionHeader
           title="Danh mục"
-          onActionPress={() => router.push('/search/results')}
+          onActionPress={() => router.push('/search')}
         />
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.horizontalRow}
         >
-          {categories.map((c) => (
+          {categoriesList.map((c) => (
             <CategoryCard
               key={c.id}
               category={c}
-              onPress={() => router.push('/search/results')}
+              onPress={() =>
+                router.push({
+                  pathname: '/search/results',
+                  params: { categoryId: c.id, q: c.title, title: c.title },
+                })
+              }
             />
           ))}
         </ScrollView>
@@ -119,14 +166,19 @@ export default function HomeScreen() {
         {/* Popular */}
         <SectionHeader
           title="Khóa học phổ biến"
-          onActionPress={() => router.push('/search/results')}
+          onActionPress={() =>
+            router.push({
+              pathname: '/search/results',
+              params: { title: 'Khóa học phổ biến', sort: 'popular' },
+            })
+          }
         />
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.horizontalRow}
         >
-          {popularCourses.map((c) => (
+          {popularList.map((c) => (
             <PopularCourseCard
               key={c.id}
               course={c}
@@ -138,14 +190,19 @@ export default function HomeScreen() {
         {/* For you */}
         <SectionHeader
           title="Dành cho bạn"
-          onActionPress={() => router.push('/search/results')}
+          onActionPress={() =>
+            router.push({
+              pathname: '/search/results',
+              params: { title: 'Dành cho bạn', sort: 'rating' },
+            })
+          }
         />
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.horizontalRow}
         >
-          {forYouCourses.map((c) => (
+          {forYouList.map((c) => (
             <FeaturedCourseCard
               key={c.id}
               course={c}
@@ -157,16 +214,21 @@ export default function HomeScreen() {
         {/* Inspiration */}
         <SectionHeader
           title="Khóa học truyền cảm hứng"
-          onActionPress={() => router.push('/search/results')}
+          onActionPress={() =>
+            router.push({
+              pathname: '/search/results',
+              params: { title: 'Khóa học truyền cảm hứng', sort: 'newest' },
+            })
+          }
         />
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.horizontalRow}
         >
-          {inspirationCourses.map((c) => (
+          {forYouList.map((c) => (
             <FeaturedCourseCard
-              key={c.id}
+              key={`inspire-${c.id}`}
               course={c}
               onPress={() => router.push(`/course/${c.id}` as any)}
             />
@@ -176,14 +238,14 @@ export default function HomeScreen() {
         {/* Instructors */}
         <SectionHeader
           title="Giảng viên hàng đầu"
-          onActionPress={() => router.push('/instructor/sara-weise')}
+          onActionPress={() => router.push('/search')}
         />
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.horizontalRow}
         >
-          {instructors.map((i) => (
+          {instructorsList.map((i) => (
             <InstructorCard
               key={i.id}
               instructor={i}
@@ -241,58 +303,77 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
     position: 'relative',
   },
   notificationBadge: {
     position: 'absolute',
-    top: 10,
-    right: 11,
+    top: 8,
+    right: 8,
     width: 8,
     height: 8,
     borderRadius: 4,
   },
+  cartBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    zIndex: 10,
+  },
+  badgeText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: '700',
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    includeFontPadding: false,
+    lineHeight: 12,
+  },
   banner: {
     marginHorizontal: Spacing.four,
+    marginBottom: Spacing.four,
     borderRadius: Radius.xl,
-    overflow: 'hidden',
     padding: Spacing.four,
-    minHeight: 150,
+    overflow: 'hidden',
+    position: 'relative',
+    minHeight: 140,
     justifyContent: 'center',
   },
   bannerDecor: {
     position: 'absolute',
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    right: -70,
-    top: -80,
-    opacity: 0.9,
+    right: -20,
+    top: -20,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    opacity: 0.25,
   },
   bannerInsideDecor: {
     position: 'absolute',
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    right: 16,
-    bottom: -40,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    left: 40,
+    bottom: -30,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#fff',
+    opacity: 0.1,
   },
-  bannerContent: { gap: Spacing.two },
-  bannerKicker: { fontSize: FontSizes.xs, fontWeight: '700', letterSpacing: 1, opacity: 0.85 },
+  bannerContent: { gap: Spacing.one },
+  bannerKicker: { fontSize: FontSizes.xs, fontWeight: '700', letterSpacing: 0.8 },
   bannerTitle: { fontSize: FontSizes.xxl, fontWeight: '800' },
   bannerCta: {
-    marginTop: Spacing.two,
     alignSelf: 'flex-start',
     paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
+    paddingVertical: 6,
     borderRadius: Radius.pill,
+    marginTop: Spacing.one,
   },
-  bannerCtaText: { fontSize: FontSizes.sm, fontWeight: '700' },
+  bannerCtaText: { fontSize: FontSizes.xs, fontWeight: '700' },
   horizontalRow: {
     paddingHorizontal: Spacing.four,
     gap: Spacing.three,

@@ -1,39 +1,82 @@
-import { useRouter } from '@/navigation/routerHook';
-import { useState } from 'react';
+import { useLocalSearchParams, useRouter } from '@/navigation/routerHook';
+import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Chip } from '@/components/ui/chip';
-import { PriceRange } from '@/components/ui/price-range';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Spacing } from '@/constants/theme';
-import { filterCategories, priceRange, ratingOptions, sortOptions, totalResults } from '@/data/search';
 import { useTheme } from '@/hooks/use-theme';
+import { courseService } from '@/services/courseService';
+import type { Category } from '@/types/category';
+
+const SORT_OPTIONS = [
+  { id: 'popular', label: 'Phổ biến' },
+  { id: 'newest', label: 'Mới nhất' },
+  { id: 'rating', label: 'Đánh giá cao' },
+  { id: 'price_asc', label: 'Giá thấp → cao' },
+  { id: 'price_desc', label: 'Giá cao → thấp' },
+];
+
+const PRICE_PRESETS = [
+  { id: 'all', label: 'Tất cả mức giá', min: undefined, max: undefined },
+  { id: 'under-500k', label: 'Dưới 500k', min: 0, max: 500000 },
+  { id: '500k-1m', label: '500k - 1 triệu', min: 500000, max: 1000000 },
+  { id: 'above-1m', label: 'Trên 1 triệu', min: 1000000, max: 5000000 },
+];
 
 export default function SearchFilterScreen() {
   const theme = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{
+    q?: string;
+    categoryId?: string;
+    sort?: string;
+    minPrice?: string;
+    maxPrice?: string;
+  }>();
 
-  const [sortId, setSortId] = useState<string>(sortOptions[0].id);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>(['design']);
-  const [ratingId, setRatingId] = useState<string>(ratingOptions[0].id);
-  const [price] = useState<[number, number]>([priceRange.minimum, priceRange.maximum]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>(params.categoryId || '');
+  const [sortId, setSortId] = useState<string>(params.sort || 'popular');
+  const [selectedPriceId, setSelectedPriceId] = useState<string>(() => {
+    if (params.minPrice === '0' && params.maxPrice === '500000') return 'under-500k';
+    if (params.minPrice === '500000' && params.maxPrice === '1000000') return '500k-1m';
+    if (params.minPrice === '1000000') return 'above-1m';
+    return 'all';
+  });
+
+  useEffect(() => {
+    courseService.getCategories().then((cats) => {
+      if (Array.isArray(cats) && cats.length > 0) {
+        setCategories(cats);
+      }
+    });
+  }, []);
 
   const toggleCategory = (id: string) => {
-    setSelectedCategories((current) =>
-      current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
-    );
+    setSelectedCategoryId((curr) => (curr === id ? '' : id));
   };
 
   const resetFilters = () => {
-    setSortId(sortOptions[0].id);
-    setSelectedCategories([]);
-    setRatingId(ratingOptions[0].id);
+    setSortId('popular');
+    setSelectedCategoryId('');
+    setSelectedPriceId('all');
   };
 
   const applyFilters = () => {
-    router.replace({ pathname: '/search/results', params: { q: 'Design' } });
+    const preset = PRICE_PRESETS.find((p) => p.id === selectedPriceId);
+    router.replace({
+      pathname: '/search/results',
+      params: {
+        q: params.q || '',
+        categoryId: selectedCategoryId || '',
+        sort: sortId,
+        minPrice: preset?.min != null ? String(preset.min) : '',
+        maxPrice: preset?.max != null ? String(preset.max) : '',
+      },
+    });
   };
 
   return (
@@ -44,10 +87,6 @@ export default function SearchFilterScreen() {
         accessibilityLabel="Đóng bộ lọc"
         style={styles.backdrop}
       />
-
-      <View style={[styles.countWrapper, { top: insets.top + Spacing.four }]}>
-        <Text style={[styles.count, { color: theme.onPrimary }]}>{`${totalResults} kết quả`}</Text>
-      </View>
 
       <View
         style={[
@@ -60,7 +99,7 @@ export default function SearchFilterScreen() {
         <View style={[styles.handle, { backgroundColor: theme.handle }]} />
 
         <View style={styles.sheetHeader}>
-          <Text style={[styles.title, { color: theme.text }]}>Bộ lọc</Text>
+          <Text style={[styles.title, { color: theme.text }]}>Bộ lọc khóa học</Text>
           <Pressable onPress={resetFilters} accessibilityRole="button" accessibilityLabel="Đặt lại">
             <Text style={[styles.reset, { color: theme.primary }]}>Đặt lại</Text>
           </Pressable>
@@ -70,9 +109,9 @@ export default function SearchFilterScreen() {
           style={styles.body}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.bodyContent}>
-          <Text style={[styles.groupTitle, { color: theme.text }]}>Sắp xếp</Text>
+          <Text style={[styles.groupTitle, { color: theme.text }]}>Sắp xếp theo</Text>
           <View style={styles.chipRow}>
-            {sortOptions.map((option) => (
+            {SORT_OPTIONS.map((option) => (
               <Chip
                 key={option.id}
                 label={option.label}
@@ -84,11 +123,16 @@ export default function SearchFilterScreen() {
 
           <Text style={[styles.groupTitle, { color: theme.text }]}>Danh mục</Text>
           <View style={styles.chipRow}>
-            {filterCategories.map((category) => (
+            <Chip
+              label="Tất cả danh mục"
+              active={!selectedCategoryId}
+              onPress={() => setSelectedCategoryId('')}
+            />
+            {categories.map((category) => (
               <Chip
                 key={category.id}
-                label={category.title}
-                active={selectedCategories.includes(category.id)}
+                label={category.title || category.label || ''}
+                active={selectedCategoryId === category.id}
                 onPress={() => toggleCategory(category.id)}
               />
             ))}
@@ -97,30 +141,22 @@ export default function SearchFilterScreen() {
           <View style={styles.priceHeader}>
             <Text style={[styles.groupTitleInline, { color: theme.text }]}>Mức giá</Text>
             <Text style={[styles.priceValue, { color: theme.primary }]}>
-              {`$${price[0]} – $${price[1]}`}
+              {PRICE_PRESETS.find((p) => p.id === selectedPriceId)?.label}
             </Text>
           </View>
-          <PriceRange
-            minimum={priceRange.minimum}
-            maximum={priceRange.maximum}
-            low={price[0]}
-            high={price[1]}
-          />
-
-          <Text style={[styles.groupTitle, { color: theme.text }]}>Đánh giá</Text>
           <View style={styles.chipRow}>
-            {ratingOptions.map((option) => (
+            {PRICE_PRESETS.map((preset) => (
               <Chip
-                key={option.id}
-                label={option.label}
-                active={ratingId === option.id}
-                onPress={() => setRatingId(option.id)}
+                key={preset.id}
+                label={preset.label}
+                active={selectedPriceId === preset.id}
+                onPress={() => setSelectedPriceId(preset.id)}
               />
             ))}
           </View>
         </ScrollView>
 
-        <PrimaryButton label="Áp dụng" onPress={applyFilters} />
+        <PrimaryButton label="Áp dụng bộ lọc" onPress={applyFilters} />
       </View>
     </View>
   );

@@ -8,7 +8,7 @@ import { FooterLink } from '@/components/ui/footer-link';
 import { HeroIllustration } from '@/components/ui/hero-illustration';
 import { PaginationDots } from '@/components/ui/pagination-dots';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
-import { welcomeCopy } from '@/data/auth';
+import { welcomeCopy } from '@/constants/auth';
 import { useTheme } from '@/hooks/use-theme';
 
 export default function WelcomeScreen() {
@@ -40,9 +40,9 @@ export default function WelcomeScreen() {
 
           <View style={styles.actions}>
             <AppButton
-              label={welcomeCopy.primaryCta}
-              onPress={() => router.push('/register')}
-              accessibilityLabel="Bắt đầu tạo tài khoản học tập"
+              label="Bắt đầu ngay"
+              onPress={() => router.replace('/')}
+              accessibilityLabel="Bắt đầu khám phá ứng dụng học tập"
             />
             <FooterLink
               question={welcomeCopy.footerQuestion}

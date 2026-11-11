@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from '@/navigation/routerHook';
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,7 +8,9 @@ import { MyCourseCard } from '@/components/my-course-card';
 import { BottomNavBar } from '@/components/bottom-bar';
 import { useTheme } from '@/hooks/use-theme';
 import { BottomTabInset, FontSizes, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
-import { myCourses } from '@/data/my-courses';
+import { useAppStore } from '@/store';
+import { enrollmentService } from '@/services/enrollmentService';
+import type { MyCourse } from '@/types/course';
 
 type TabKey = 'all' | 'in-progress' | 'completed';
 
@@ -21,13 +23,38 @@ const tabLabels: { key: TabKey; label: string }[] = [
 export default function MyCoursesScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const { user } = useAppStore();
   const [tab, setTab] = useState<TabKey>('all');
+  const [allCourses, setAllCourses] = useState<MyCourse[]>([]);
+
+  useEffect(() => {
+    if (!user) {
+      setAllCourses([]);
+      return;
+    }
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await enrollmentService.getMyEnrollments();
+        if (mounted && res && res.all && res.all.length > 0) {
+          setAllCourses(res.all);
+        } else if (mounted) {
+          setAllCourses([]);
+        }
+      } catch (err) {
+        if (mounted) setAllCourses([]);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [user]);
 
   const items = useMemo(() => {
-    if (tab === 'all') return myCourses;
-    if (tab === 'in-progress') return myCourses.filter((c) => c.progress < 100);
-    return myCourses.filter((c) => c.progress >= 100);
-  }, [tab]);
+    if (tab === 'all') return allCourses;
+    if (tab === 'in-progress') return allCourses.filter((c) => c.progress < 100);
+    return allCourses.filter((c) => c.progress >= 100);
+  }, [allCourses, tab]);
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]} edges={['top']}>
@@ -55,7 +82,7 @@ export default function MyCoursesScreen() {
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Xem ngay"
-                onPress={() => router.push('/course/ux-foundation')}
+                onPress={() => router.push('/')}
                 style={[styles.bannerCta, { backgroundColor: theme.accentYellow }]}
               >
                 <ThemedText style={[styles.bannerCtaText, { color: theme.text }]}>Xem ngay</ThemedText>
@@ -88,10 +115,33 @@ export default function MyCoursesScreen() {
             </View>
           </View>
         }
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <ThemedText style={{ fontSize: 44, textAlign: 'center', marginBottom: Spacing.two }}>
+              📚
+            </ThemedText>
+            <ThemedText style={[styles.emptyTitle, { color: theme.text }]}>
+              {user ? 'Bạn chưa có khóa học nào' : 'Chưa đăng nhập'}
+            </ThemedText>
+            <ThemedText style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
+              {user
+                ? 'Khám phá các khóa học để bắt đầu học tập ngay hôm nay!'
+                : 'Vui lòng đăng nhập để xem tiến độ và các khóa học bạn đã đăng ký.'}
+            </ThemedText>
+            <Pressable
+              onPress={() => router.push(user ? '/' : '/login')}
+              style={[styles.emptyBtn, { backgroundColor: theme.primary }]}
+            >
+              <ThemedText style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>
+                {user ? 'Khám phá khóa học' : 'Đăng nhập ngay'}
+              </ThemedText>
+            </Pressable>
+          </View>
+        }
         renderItem={({ item }) => (
           <MyCourseCard
             course={item}
-            onPress={() => router.push('/course/ux-foundation/player')}
+            onPress={() => router.push(`/course/${item.id}/player` as any)}
           />
         )}
       />
@@ -115,4 +165,28 @@ const styles = StyleSheet.create({
   bannerCtaText: { fontSize: FontSizes.sm, fontWeight: '700' },
   tabRow: { flexDirection: 'row', gap: Spacing.four },
   tab: { fontSize: FontSizes.base },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.six,
+    paddingHorizontal: Spacing.four,
+    gap: Spacing.two,
+  },
+  emptyTitle: {
+    fontSize: FontSizes.lg,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    fontSize: FontSizes.sm,
+    textAlign: 'center',
+    lineHeight: 20,
+    maxWidth: 280,
+  },
+  emptyBtn: {
+    marginTop: Spacing.three,
+    paddingHorizontal: Spacing.four,
+    paddingVertical: Spacing.two + 2,
+    borderRadius: Radius.pill,
+  },
 });

@@ -26,21 +26,20 @@ export function resolveRoute(href: string | { pathname: string; params?: any }):
   // Course routes
   if (path.startsWith('/course/')) {
     const parts = path.split('/');
-    // e.g. /course/php
-    const id = parts[2];
+    const routeId = (parts[2] === '[id]' ? params?.id : parts[2]) || params?.id;
     const sub = parts[3];
-    if (sub === 'curriculum') return { screen: 'CourseCurriculum', params: { id } };
-    if (sub === 'reviews') return { screen: 'CourseReviews', params: { id } };
-    if (sub === 'player') return { screen: 'CoursePlayer', params: { id } };
-    if (sub === 'qa') return { screen: 'CourseQa', params: { id } };
-    return { screen: 'CourseDetail', params: { id } };
+    if (sub === 'curriculum') return { screen: 'CourseCurriculum', params: { id: routeId } };
+    if (sub === 'reviews') return { screen: 'CourseReviews', params: { id: routeId } };
+    if (sub === 'player') return { screen: 'CoursePlayer', params: { id: routeId } };
+    if (sub === 'qa') return { screen: 'CourseQa', params: { id: routeId } };
+    return { screen: 'CourseDetail', params: { id: routeId } };
   }
 
   // Instructor routes
   if (path.startsWith('/instructor/')) {
     const parts = path.split('/');
-    const id = parts[2];
-    return { screen: 'InstructorProfile', params: { id } };
+    const routeId = (parts[2] === '[id]' ? params?.id : parts[2]) || params?.id;
+    return { screen: 'InstructorProfile', params: { id: routeId } };
   }
 
   return { screen: 'MainTabs', params };

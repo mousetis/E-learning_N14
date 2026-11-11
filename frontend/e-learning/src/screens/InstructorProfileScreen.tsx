@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from '@/navigation/routerHook';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { CourseMiniCard } from '@/components/course/course-mini-card';
@@ -10,9 +10,11 @@ import { ScreenHeader } from '@/components/ui/screen-header';
 import { SectionHeader } from '@/components/ui/section-header';
 import { SegmentedTabs, type SegmentItem } from '@/components/ui/segmented-tabs';
 import { Radius, Spacing } from '@/constants/theme';
-import { instructorProfile } from '@/data/instructor';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { courseOverviewHref } from '@/lib/routes';
+import { courseService } from '@/services/courseService';
+import { apiClient, ENDPOINTS } from '@/api';
+import type { InstructorProfile } from '@/types/course';
 
 const TABS: SegmentItem[] = [
   { key: 'overview', label: 'Tổng quan' },
@@ -20,13 +22,81 @@ const TABS: SegmentItem[] = [
   { key: 'reviews', label: 'Đánh giá' },
 ];
 
+const EMPTY_PROFILE: InstructorProfile = {
+  id: '',
+  name: 'Giảng viên',
+  role: 'Chuyên gia đào tạo',
+  location: 'Việt Nam',
+  localTime: '',
+  tone: 'pink',
+  bio: '',
+  stats: { rating: 5.0, students: 0, courses: 0 },
+  designCourses: [],
+  graphicCourses: [],
+  reviews: [],
+};
+
 export default function InstructorProfileScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const profile = instructorProfile;
-  const instructorId = typeof id === 'string' && id.length > 0 ? id : profile.id;
+  const [profile, setProfile] = useState<InstructorProfile>(EMPTY_PROFILE);
+  const instructorId = typeof id === 'string' && id.length > 0 ? id : '';
   const theme = useAppTheme();
   const router = useRouter();
   const [tab, setTab] = useState<string>('courses');
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const detail = await courseService.getInstructorDetail(instructorId);
+        if (mounted && detail) {
+          let coursesGroup: any[] = [];
+          try {
+            coursesGroup = await apiClient.get<any[]>(ENDPOINTS.INSTRUCTORS.COURSES(instructorId));
+          } catch {
+            // ignore
+          }
+
+          let designCourses: any[] = [];
+          if (Array.isArray(coursesGroup) && coursesGroup.length > 0) {
+            const firstGroup = coursesGroup[0]?.courses || coursesGroup;
+            if (firstGroup.length > 0) {
+              designCourses = firstGroup.map((c: any) => ({
+                id: c.id,
+                title: c.title,
+                author: detail.fullName || 'Giảng viên',
+                meta: `${Math.round((c.totalDurationSeconds || 0) / 60)} phút · ★ ${c.avgRating || 4.8}`,
+                tone: 'peach',
+                badge: c.bestSeller ? 'Bán chạy' : undefined,
+                image: c.thumbnailUrl || undefined,
+              }));
+            }
+          }
+
+          setProfile((prev) => ({
+            ...prev,
+            id: detail.id,
+            name: detail.fullName,
+            role: detail.jobTitle || detail.expertise || 'Giảng viên',
+            location: detail.location || 'Việt Nam',
+            bio: detail.introduction || prev.bio,
+            avatarUri: detail.avatarUrl || prev.avatarUri,
+            stats: {
+              rating: Number(detail.avgRating || 4.8),
+              students: detail.studentCount || prev.stats.students,
+              courses: detail.courseCount || prev.stats.courses,
+            },
+            designCourses,
+          }));
+        }
+      } catch (err) {
+        console.warn('Instructor profile load error:', err);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [instructorId]);
 
   return (
     <Screen>
@@ -84,18 +154,8 @@ export default function InstructorProfileScreen() {
         {tab === 'courses' ? (
           <View style={styles.sectionGroup}>
             <View style={styles.section}>
-              <SectionHeader title="UI/UX Design" />
+              <SectionHeader title="Khóa học đang giảng dạy" />
               {profile.designCourses.map((item) => (
-                <CourseMiniCard
-                  key={item.id}
-                  course={item}
-                  onPress={() => router.push(courseOverviewHref(item.id))}
-                />
-              ))}
-            </View>
-            <View style={styles.section}>
-              <SectionHeader title="Thiết kế đồ họa" />
-              {profile.graphicCourses.map((item) => (
                 <CourseMiniCard
                   key={item.id}
                   course={item}
@@ -108,9 +168,9 @@ export default function InstructorProfileScreen() {
 
         {tab === 'reviews' ? (
           <View style={styles.section}>
-            <SectionHeader title="Top đánh giá" />
-            {profile.reviews.map((review) => (
-              <ReviewCard key={`${instructorId}-${review.id}`} review={review} />
+            <SectionHeader title="Đánh giá từ học viên" />
+            {profile.reviews.map((item) => (
+              <ReviewCard key={item.id} review={item} />
             ))}
           </View>
         ) : null}
@@ -128,14 +188,14 @@ const styles = StyleSheet.create({
   profile: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.three,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
     padding: Spacing.three,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    gap: Spacing.three,
   },
   profileBody: {
     flex: 1,
-    gap: Spacing.one,
+    gap: 2,
   },
   nameRow: {
     flexDirection: 'row',
@@ -143,12 +203,12 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   name: {
-    fontSize: 19,
+    fontSize: 16,
     fontWeight: '700',
   },
   badge: {
     paddingHorizontal: Spacing.two,
-    paddingVertical: Spacing.half,
+    paddingVertical: 2,
     borderRadius: Radius.pill,
   },
   badgeText: {
@@ -159,7 +219,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   sectionGroup: {
-    gap: Spacing.four,
+    gap: Spacing.three,
   },
   section: {
     gap: Spacing.two,
@@ -170,17 +230,18 @@ const styles = StyleSheet.create({
   },
   stats: {
     flexDirection: 'row',
-    gap: Spacing.three,
+    justifyContent: 'space-between',
+    paddingVertical: Spacing.two,
   },
   stat: {
+    alignItems: 'center',
     flex: 1,
-    gap: Spacing.half,
   },
   statValue: {
     fontSize: 16,
     fontWeight: '700',
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 11,
   },
 });

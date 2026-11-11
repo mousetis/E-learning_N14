@@ -17,6 +17,7 @@ type Props = {
   compact?: boolean;
   coverImage?: string;
   onPlayPress?: () => void;
+  onTabChange?: (key: string) => void;
 };
 
 export function CourseHero({
@@ -30,6 +31,7 @@ export function CourseHero({
   compact = false,
   coverImage,
   onPlayPress,
+  onTabChange,
 }: Props) {
   const theme = useAppTheme();
   const coverColor = tone === 'ink' ? theme.ink : theme.primary;
@@ -77,7 +79,7 @@ export function CourseHero({
 
       <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
       {footer ? <View style={styles.footer}>{footer}</View> : null}
-      <SegmentedTabs activeKey={activeTab} items={tabs} />
+      <SegmentedTabs activeKey={activeTab} items={tabs} onSelect={onTabChange} />
     </View>
   );
 }

@@ -1,8 +1,8 @@
-import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { FontSizes, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useRouter } from '@/navigation/routerHook';
 
 export type ScreenHeaderProps = {
   title: string;
@@ -11,17 +11,14 @@ export type ScreenHeaderProps = {
 
 export function ScreenHeader({ title, onBack }: ScreenHeaderProps) {
   const theme = useTheme();
+  const router = useRouter();
 
   const handleBack = () => {
     if (onBack) {
       onBack();
       return;
     }
-    if (router.canGoBack()) {
-      router.back();
-      return;
-    }
-    router.replace('/');
+    router.back();
   };
 
   return (

@@ -1,5 +1,5 @@
-import { useLocalSearchParams } from '@/navigation/routerHook';
-import { useState } from 'react';
+import { useLocalSearchParams, useRouter } from '@/navigation/routerHook';
+import { useState, useEffect } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { PriceBar } from '@/components/course/price-bar';
@@ -10,13 +10,15 @@ import { Screen } from '@/components/ui/screen';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import type { SegmentItem } from '@/components/ui/segmented-tabs';
 import { Radius, Spacing } from '@/constants/theme';
-import { course, courseReviews } from '@/data/course-detail';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import {
   courseCurriculumHref,
   courseOverviewHref,
+  coursePlayerHref,
   courseReviewsHref,
 } from '@/lib/routes';
+import { courseService } from '@/services/courseService';
+import type { Review, CourseDetail } from '@/types/course';
 
 type ReviewFilter = 'all' | '5' | '4' | '3';
 
@@ -29,9 +31,33 @@ const FILTERS: { key: ReviewFilter; label: string }[] = [
 
 export default function CourseReviewsScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const courseId = typeof id === 'string' && id.length > 0 ? id : course.id;
+  const courseId = typeof id === 'string' && id.length > 0 ? id : '';
+  const router = useRouter();
   const theme = useAppTheme();
   const [filter, setFilter] = useState<ReviewFilter>('all');
+  const [courseData, setCourseData] = useState<CourseDetail | null>(null);
+  const [reviewsList, setReviewsList] = useState<Review[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const [detail, revs] = await Promise.all([
+          courseService.getCourseDetail(courseId),
+          courseService.getReviews(courseId),
+        ]);
+        if (mounted) {
+          if (detail) setCourseData(detail);
+          if (revs && revs.length > 0) setReviewsList(revs);
+        }
+      } catch (err) {
+        console.warn('Load reviews error:', err);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [courseId]);
 
   const tabs: SegmentItem[] = [
     { key: 'overview', label: 'Tổng quan', href: courseOverviewHref(courseId) },
@@ -39,28 +65,51 @@ export default function CourseReviewsScreen() {
     { key: 'reviews', label: 'Đánh giá', href: courseReviewsHref(courseId) },
   ];
 
-  const reviews =
+  const filteredReviews =
     filter === 'all'
-      ? courseReviews
-      : courseReviews.filter((review) => String(Math.round(review.rating)) === filter);
+      ? reviewsList
+      : reviewsList.filter((review) => String(Math.round(review.rating)) === filter);
 
   return (
-    <Screen footer={<PriceBar price={course.price} discount={course.discount} />}>
+    <Screen
+      footer={
+        courseData?.owned ? (
+          <PriceBar
+            price="Đã sở hữu"
+            discount=""
+            actionLabel="Vào học ngay"
+            onPress={() => router.push(coursePlayerHref(courseId))}
+          />
+        ) : (
+          <PriceBar
+            price={courseData?.price || '0 đ'}
+            discount={courseData?.discount || ''}
+            actionLabel="Thêm vào giỏ"
+            onPress={() => router.push('/cart')}
+          />
+        )
+      }
+    >
       <ScreenHeader title="Chi tiết khóa học" />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <CourseHero
           activeTab="reviews"
-          category={course.category}
+          category={courseData?.category || 'Khóa học'}
+          coverImage={courseData?.coverImage}
           footer={
             <RatingLine
-              lessonCount={course.lessonCount}
-              rating={course.rating}
-              reviewCount={course.reviewCount}
+              lessonCount={courseData?.lessonCount || 0}
+              rating={courseData?.rating || 5}
+              reviewCount={courseData?.reviewCount || 0}
             />
           }
-          headline={course.headline}
+          headline={courseData?.headline || ['Khóa học', 'Chuyên sâu']}
           tabs={tabs}
-          title={course.title}
+          onTabChange={(key) => {
+            if (key === 'overview') router.push(courseOverviewHref(courseId));
+            if (key === 'curriculum') router.push(courseCurriculumHref(courseId));
+          }}
+          title={courseData?.title || 'Đang tải khóa học...'}
         />
 
         <View
@@ -71,7 +120,7 @@ export default function CourseReviewsScreen() {
         >
           <View style={styles.summaryRow}>
             <Text style={[styles.summaryTitle, { color: theme.text }]}>
-              4.5/5 (1233+ đánh giá)
+              {(courseData?.rating || 5).toFixed(1)}/5 ({courseData?.reviewCount || 0}+ đánh giá)
             </Text>
             <Pressable
               accessibilityRole="button"
@@ -101,7 +150,12 @@ export default function CourseReviewsScreen() {
                       },
                     ]}
                   >
-                    <Text style={[styles.chipLabel, { color: active ? theme.onPrimary : theme.primary }]}>
+                    <Text
+                      style={[
+                        styles.chipText,
+                        { color: active ? theme.onPrimary : theme.textSecondary },
+                      ]}
+                    >
                       {item.label}
                     </Text>
                   </Pressable>
@@ -111,15 +165,11 @@ export default function CourseReviewsScreen() {
           </ScrollView>
         </View>
 
-        {reviews.map((review) => (
-          <ReviewCard key={review.id} review={review} />
-        ))}
-
-        {reviews.length === 0 ? (
-          <Text style={[styles.empty, { color: theme.textSecondary }]}>
-            Chưa có đánh giá nào cho mức sao này.
-          </Text>
-        ) : null}
+        <View style={styles.reviews}>
+          {filteredReviews.map((review) => (
+            <ReviewCard key={review.id} review={review} />
+          ))}
+        </View>
       </ScrollView>
     </Screen>
   );
@@ -132,23 +182,22 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
   },
   summary: {
-    gap: Spacing.two,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
     padding: Spacing.three,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    gap: Spacing.two,
   },
   summaryRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    gap: Spacing.two,
+    alignItems: 'center',
   },
   summaryTitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
   },
   summaryAction: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
   },
   chips: {
@@ -157,16 +206,15 @@ const styles = StyleSheet.create({
   },
   chip: {
     paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.one + 2,
+    paddingVertical: 6,
     borderRadius: Radius.pill,
     borderWidth: 1,
   },
-  chipLabel: {
+  chipText: {
     fontSize: 12,
     fontWeight: '600',
   },
-  empty: {
-    fontSize: 13,
-    textAlign: 'center',
+  reviews: {
+    gap: Spacing.three,
   },
 });
